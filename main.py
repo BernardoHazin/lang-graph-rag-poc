@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 from typing import TypedDict, List
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
 
 # LangGraph and LangChain imports
 from langchain_core.messages import BaseMessage, HumanMessage
@@ -15,12 +18,26 @@ from langgraph.graph import StateGraph, END
 # Load environment variables from .env file
 load_dotenv()
 
-# --- 2. Database and Retrieval Tool Setup ---
+# --- 2. FastAPI Setup ---
+app = FastAPI(
+    title="My Life Chat API",
+    description="A simple API to interact with your personal knowledge base using RAG",
+    version="1.0.0"
+)
+
+# Pydantic models for API requests and responses
+class ChatRequest(BaseModel):
+    message: str
+
+class ChatResponse(BaseModel):
+    response: str
+    context: str = None
+
+# --- 3. Database and Retrieval Tool Setup ---
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 OLLAMA_URL = os.getenv("OLLAMA_URL")
 
-# --- 2. Database and Retrieval Tool Setup ---
 # You need to have a table with text and vector columns.
 # Let's assume you have a table named 'documents' with 'content' and 'embedding' columns.
 COLLECTION_NAME = "my_personal_knowledge"
@@ -41,11 +58,11 @@ vector_store = PGVector(
 # Create a retriever from the vector store
 retriever = vector_store.as_retriever()
 
-# --- 3. Language Model (LLM) Setup ---
+# --- 4. Language Model (LLM) Setup ---
 # Define the LLM model. This assumes 'ollama pull llama3' has been run.
 llm = ChatOllama(model="llama3", base_url=OLLAMA_URL)
 
-# --- 4. LangGraph Agent Definition ---
+# --- 5. LangGraph Agent Definition ---
 
 # Define a custom state for our graph.
 # It will hold the user's message and the retrieved context.
@@ -115,32 +132,37 @@ workflow.set_entry_point("retrieve")
 workflow.add_edge("generate", END)
 
 # Compile the graph
-app = workflow.compile()
+rag_workflow = workflow.compile()
 
-# --- 5. Usage Example ---
+# --- 6. API Endpoints ---
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    """
+    Send a message to the AI assistant and get a response based on your personal knowledge base.
+    """
+    try:
+        # Run the RAG workflow with the user's message
+        final_state = rag_workflow.invoke({"input": request.message})
+        
+        return ChatResponse(
+            response=final_state["response"],
+            context=final_state.get("context", "")
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify the API is running.
+    """
+    return {"status": "healthy", "message": "My Life Chat API is running"}
+
+# --- 7. Usage Example ---
 if __name__ == "__main__":
-    # --- IMPORTANT ---
-    # Before running, you must:
-    # 1. Run 'docker-compose up' to start the database.
-    # 2. Run 'ollama serve' and 'ollama pull llama3' and 'ollama pull mxbai-embed-large'
-    # 3. Use a script to populate your PGVector table with some personal data.
-
-    # Example question
-    question = "What companies have I worked for?"
-    
-    # Run the graph with a question
-    # The graph will retrieve context, then generate a response
-    final_state = app.invoke({"input": question})
-
-    print("\n--- RESPONSE ---")
-    print(final_state["response"])
-
-    final_state = app.invoke({"input": "What is my name?"})
-
-    print("\n--- RESPONSE ---")
-    print(final_state["response"])
-
-    final_state = app.invoke({"input": "What places have I visited?"})
-
-    print("\n--- RESPONSE ---")
-    print(final_state["response"])
+    print("Starting My Life Chat API server...")
+    print("API will be available at: http://localhost:8000")
+    print("Health check: http://localhost:8000/health")
+    print("Chat endpoint: POST http://localhost:8000/chat")
+    print("Press Ctrl+C to stop the server")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

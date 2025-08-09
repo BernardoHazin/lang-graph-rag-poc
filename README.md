@@ -44,8 +44,59 @@ Built with a modern AI stack:
    ```
 
 4. **Start chatting**:
-   - Open http://localhost:8000
-   - Ask about your life!
+   - **Web Interface**: Open http://localhost:8000
+   - **API Mode**: Run `python main.py --api` for API-only mode
+   - **Command Line**: Run `python main.py` for direct interaction
+
+## 🌐 API Usage
+
+### Starting the API Server
+```bash
+python main.py --api
+```
+
+The API will be available at `http://localhost:8000`
+
+### API Endpoints
+
+#### Health Check
+```bash
+curl http://localhost:8000/health
+```
+Response: `{"status": "healthy", "message": "My Life Chat API is running"}`
+
+#### Chat Endpoint
+```bash
+curl -X POST "http://localhost:8000/chat" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "What companies have I worked for?"}'
+```
+
+Response:
+```json
+{
+  "response": "Based on your personal knowledge base, you have worked for...",
+  "context": "Retrieved context from your knowledge base..."
+}
+```
+
+#### Example API Interactions
+```bash
+# Ask about your work experience
+curl -X POST "http://localhost:8000/chat" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "What companies have I worked for?"}'
+
+# Ask about your travel history
+curl -X POST "http://localhost:8000/chat" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "What places have I visited?"}'
+
+# Ask about your name
+curl -X POST "http://localhost:8000/chat" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "What is my name?"}'
+```
 
 ## 💡 Usage Examples
 

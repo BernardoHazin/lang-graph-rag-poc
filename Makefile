@@ -2,8 +2,8 @@
 init:
 	@docker compose up -d
 
-app:
-	@docker compose up app
+start:
+	@docker compose up -d app
 
 build:
 	@docker compose build app
