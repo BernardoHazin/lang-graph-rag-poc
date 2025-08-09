@@ -1,0 +1,58 @@
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama_service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    networks:
+      - app-ollama-network
+
+  db:
+    image: ankane/pgvector
+    container_name: personal_knowledge_db
+    restart: always
+    environment:
+      POSTGRES_DB: my_personal_data
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-db-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personal_chatbot_app
+    depends_on:
+      - db
+      - ollama
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/my_personal_data
+      OLLAMA_URL: http://ollama:11434
+    ports:
+      - "8000:8000"
+    volumes:
+      - pip_cache:/root/.cache/pip
+    networks:
+      - app-ollama-network
+      - app-db-network
+
+networks:
+  app-ollama-network:
+    driver: bridge
+    name: app-ollama-network
+  app-db-network:
+    driver: bridge
+    name: app-db-network
+
+volumes:
+  ollama:
+    driver: local
+  pip_cache:
+    driver: local

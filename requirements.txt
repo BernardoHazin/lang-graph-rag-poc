@@ -1,0 +1,12 @@
+langgraph
+dotenv
+langchain-core
+langchain-huggingface
+langchain-ollama
+sentence-transformers
+langchain_postgres
+SQLAlchemy
+psycopg2-binary
+fastapi
+uvicorn
+pgvector
